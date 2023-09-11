@@ -1,10 +1,7 @@
 import OpenAI from 'openai';
 import multer from "multer";
-import { extractedText as extractTextFromDocx } from "mammoth";
-import pdf from "pdf-parse";
-import { diffLines } from "diff";
 import mammoth from 'mammoth';
-
+import pdf from "pdf-parse";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -20,107 +17,127 @@ export const config = {
 };
 
 export default async (req, res) => {
-  const handler = upload.single('file');
-
-  handler(req, res, async (err) => {
-    if (err) {
-      return res.status(500).json({ error: "Upload failed." });
-    }
-
-    let extractedText;
-
-    if (req.file) {
-      const buffer = req.file.buffer;
-      const extension = req.file.originalname.split('.').pop().toLowerCase();
-
-      if (extension === 'docx') {
-        console.log ('its a docx')
-        const result = await mammoth.extractRawText({ buffer: buffer });
-        console.log ('docx result is ', result)
-        extractedText = result.value;
-        console.log('extractredText after assigned =====', extractedText)
-      } else if (extension === 'pdf') {
-        console.log ('its a pdf')
-        extractedText = await pdf(buffer);
-      } else {
-        console.log ('dunno file type')
-        return res.status(400).json({ error: "Unsupported file type." });
+  try {
+    const handler = upload.single('file');
+    
+    handler(req, res, async (err) => {
+      if (err) {
+        console.error("Upload handler error:", err);
+        return res.status(500).json({ error: "Upload failed." });
       }
-    } else {
-      extractedText = req.body.text;
-    }
 
-    // Now that we have the text, let's process it with OpenAI
-    try {
+      let extractedText;
+
+      if (req.file) {
+        const buffer = req.file.buffer;
+        const extension = req.file.originalname.split('.').pop().toLowerCase();
+
+        if (extension === 'docx') {
+          const result = await mammoth.extractRawText({ buffer: buffer });
+          extractedText = result.value;
+        } else if (extension === 'pdf') {
+          extractedText = await pdf(buffer);
+        } else {
+          return res.status(400).json({ error: "Unsupported file type." });
+        }
+      } else {
+        extractedText = req.body.text;
+      }
+
+      if (!extractedText) {
+        return res.status(400).json({ error: "No file uploaded and no text provided." });
+      }   
+      
+      // Your predefined legal positions string here
+      const predefinedLegalPositions = `License Grant:
+
+      The SaaS provider grants the customer a non-exclusive, non-transferable right to use the software service for its internal business purposes.
+      Service Availability:
+
+      The SaaS provider guarantees a 99.5% uptime, excluding scheduled maintenance. Downtime compensation mechanisms are defined.
+      Data Protection and Privacy:
+
+      The provider ensures that all customer data is stored and processed in compliance with applicable data protection laws, such as GDPR. The provider acts as a data processor on behalf of the customer.
+      Service Fees:
+
+      The customer agrees to pay a monthly/annual subscription fee. Late payments may attract an interest rate of 2% above the base rate.
+      Service Level Agreement (SLA):
+
+      The provider commits to respond to high-priority issues within 2 hours and resolves them within 24 hours.
+      Termination:
+
+      Either party can terminate the contract with 30 days' notice. Early termination may result in penalties.
+      Intellectual Property:
+
+      All intellectual property rights in the software service remain the property of the provider. The customer is granted a license to use but not to modify or distribute the software.
+      Confidentiality:
+
+      Both parties commit to keeping all proprietary information they learn during the contract confidential.
+      Limitation of Liability:
+
+      The provider's liability for any damages, whether in contract or tort, shall not exceed the fees paid by the customer in the previous 12 months.
+      Data Backup and Restoration:
+
+      The provider ensures daily backups of customer data and commits to restoring data within 48 hours in case of any data loss.
+      Support and Maintenance:
+
+      The provider offers customer support from 9 AM to 6 PM on weekdays. Scheduled maintenance will be communicated 48 hours in advance.
+      Integration and APIs:
+
+      The provider offers APIs for integration and ensures they remain functional. Any changes to APIs will be communicated 60 days in advance.
+      Non-Solicitation:
+
+      During the contract and for 1 year after its termination, neither party shall solicit or hire employees of the other party without written consent.
+      Governing Law:
+
+      The contract will be governed by the laws of California, USA, and disputes will be resolved in the courts of San Francisco.
+      Amendments:
+
+      Any changes to the contract must be in writing and signed by both parties.
+      `; 
+
+      const promptText = `
+        You're an expert, senior commercial lawyer. Given the following Document, suggest edits to align it with the Predefined Legal Positions I give to you. Mark suggested edits with **[ADD]** and deletions with **[DELETE]**. Return the full Document including the suggested edits. 
+
+        Document:
+        ${extractedText}
+
+        Predefined Legal Positions:
+        ${predefinedLegalPositions}
+
+        Suggested Edits:`;
+
       const completion = await openai.chat.completions.create({
-        messages: [{ role: 'user', content: extractedText }],
-        model: 'gpt-3.5-turbo-16k',
+        messages: [{ role: 'user', content: promptText }],
+        model: 'gpt-3.5-turbo-16k-0613',
       });
 
-      const predefinedLegalPositions = `
+      console.log('suggestedEdits is', completion.choices[0].message.content);
 
-1. **Governing Law and Jurisdiction**:
-    - The contract will be governed by the laws of New York, USA.
-    - Any disputes arising from this contract will be resolved in the courts of New York City.
+      const suggestedEdits = completion.choices[0].message.content;
+      
+      const styledEdits = styleSuggestedEdits(suggestedEdits)
 
-2. **Payment Terms**:
-    - Payment shall be made within 30 days of receipt of invoice.
-    - Late payments are subject to an interest rate of 5% per month.
-
-3. **Confidentiality**:
-    - Both parties agree to keep all proprietary information confidential and not to disclose it to third parties.
-    - This confidentiality obligation shall survive the termination of this contract for a period of 3 years.
-
-4. **Termination**:
-    - Either party may terminate this contract with 60 days written notice.
-    - In the event of a material breach, the non-breaching party may terminate the contract immediately.
-
-5. **Indemnification**:
-    - Company A shall indemnify Company B against any claims, damages, or liabilities arising from Company A's breach of this contract.
-
-6. **Limitation of Liability**:
-    - Neither party shall be liable for indirect, incidental, or consequential damages.
-    - Total liability under this contract shall not exceed the total amount of $100,000.
-
-7. **Force Majeure**:
-    - Neither party shall be held responsible for failure to perform its obligations if such failure is due to events beyond its reasonable control, such as natural disasters, war, or civil unrest.
-
-8. **Intellectual Property**:
-    - Any intellectual property developed during the course of this contract shall remain the property of Company A.
-    - Company B is granted a non-exclusive license to use the intellectual property for marketing purposes.
-
-9. **Non-Compete**:
-    - For a duration of 2 years after the termination of this contract, Company B agrees not to engage in business activities that directly compete with Company A in North America.
-
-10. **Non-Solicitation**:
-    - During the contract and for 2 years after its termination, neither party shall solicit or hire employees of the other party without written consent.
-
-11. **Assignment**:
-    - Neither party may assign or transfer their rights or obligations under this contract without the written consent of the other party.
-
-12. **Amendments**:
-    - Any changes to this contract must be in writing and signed by both parties.
-
-13. **Notices**:
-    - All notices under this contract shall be in writing and shall be deemed given when delivered personally or by courier, or 7 days after being sent by registered mail.
-
-14. **Entire Agreement**:
-    - This contract represents the entire agreement between the parties and supersedes all prior negotiations, understandings, and agreements between the parties.
-
-15. **Waiver**:
-    - Failure by any party to enforce any provision of this contract will not be deemed a waiver of future enforcement of that or any other provision.
-      `;
-
-      const comparisonResult = compareTexts(extractedText, predefinedLegalPositions);
-
-      res.status(200).json({ openaiResponse: completion.data, comparison: comparisonResult });
-
-    } catch (error) {
-      console.error("Error calling OpenAI:", error);
-      res.status(500).json({ error: "OpenAI request failed." });
+      return res.status(200).json({ openaiResponse: styledEdits });
+      return res.status(500).json({ error: "Unknown error occurred." });
+    });
+  } catch (error) {
+    console.error("Error:", error, JSON.stringify(error, null, 2));
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Server error." });
     }
-  });
+  }
 };
+
+function styleSuggestedEdits(suggestedEdits) {
+    console.log('suggestedEdits before styling', suggestedEdits)
+    let styledText = suggestedEdits;
+    
+    styledText = styledText.replace(/\*\*\[ADD\]\*\* ([^\*]+?)(?=\*\*)/g, "<span style='color: green'>$1</span>");
+    styledText = styledText.replace(/\*\*\[DELETE\]\*\* ([^\*]+?)(?=\*\*)/g, "<span style='color: red; text-decoration: line-through;'>$1</span>");
+    console.log('styled text is', styledText)
+    return styledText;
+  }
 
 function compareTexts(originalText, newText) {
   console.log("Old Text:", originalText);

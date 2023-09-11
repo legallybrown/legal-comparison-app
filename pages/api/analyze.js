@@ -1,7 +1,7 @@
-import { Client } from "openai";
+import OpenAI from 'openai';
 
 export default async (req, res) => {
-  const openai = new Client({ key: process.env.OPENAI_API_KEY });
+  const openai = new OpenAI({ key: process.env.OPENAI_API_KEY });
 
   if (req.method === "POST") {
     const { text } = req.body;
