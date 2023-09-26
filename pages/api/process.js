@@ -95,19 +95,22 @@ export default async (req, res) => {
 
       Any changes to the contract must be in writing and signed by both parties.
       `; 
+      
+const promptText = `
+  You're an expert, senior commercial lawyer. Given the following Document, suggest edits to align it with the Predefined Legal Positions I give to you. Return the suggested edits in a structured format like:
 
-      const promptText = `
-        You're an expert, senior commercial lawyer. Given the following Document, suggest edits to align it with the Predefined Legal Positions I give to you. Mark suggested edits with **[ADD]** and deletions with **[DELETE]**. Return the full Document including the suggested edits. 
+  [
+    {"type": "add", "text": "suggested addition"},
+    {"type": "delete", "text": "suggested deletion"}
+  ]
 
-        Document:
-        ${extractedText}
+  Document:
+  ${extractedText}
 
-        Predefined Legal Positions:
-        ${predefinedLegalPositions}
-
-        Suggested Edits:`;
-
-      const completion = await openai.chat.completions.create({
+  Predefined Legal Positions:
+  ${predefinedLegalPositions}
+`;
+const completion = await openai.chat.completions.create({
         messages: [{ role: 'user', content: promptText }],
         model: 'gpt-3.5-turbo-16k-0613',
       });
@@ -129,17 +132,25 @@ export default async (req, res) => {
   }
 };
 
-function styleSuggestedEdits(suggestedEdits) {
-    console.log('suggestedEdits before styling', suggestedEdits)
-    let styledText = suggestedEdits;
-    
-    styledText = styledText.replace(/\*\*\[ADD\]\*\* ([^\*]+?)(?=\*\*)/g, "<span style='color: green'>$1</span>");
-    styledText = styledText.replace(/\*\*\[DELETE\]\*\* ([^\*]+?)(?=\*\*)/g, "<span style='color: red; text-decoration: line-through;'>$1</span>");
-    console.log('styled text is', styledText)
-    return styledText;
-  }
 
-function compareTexts(originalText, newText) {
+function styleSuggestedEdits(jsonEdits) {
+    let styledText = "";
+    try {
+        const edits = JSON.parse(jsonEdits);
+        for (let edit of edits) {
+            if (edit.type === "add") {
+                styledText += "<span style='color: green'>" + edit.text + "</span> ";
+            } else if (edit.type === "delete") {
+                styledText += "<span style='color: red; text-decoration: line-through;'>" + edit.text + "</span> ";
+            }
+        }
+    } catch (error) {
+        console.error("Error parsing JSON edits:", error);
+    }
+    return styledText;
+}
+
+    function compareTexts(originalText, newText) {
   console.log("Old Text:", originalText);
   console.log("New Text:", newText);
   const changes = diffLines(originalText, newText);
