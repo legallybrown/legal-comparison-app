@@ -70,7 +70,7 @@ export default function Home() {
 
   return (
     <div className="bg-gray-200 min-h-screen p-6">
-      <h1 className="text-2xl font-bold mb-4">GPT Contract Review</h1>
+      <h1 className="text-2xl font-bold mb-4">GPT-4 Contract Review</h1>
       <div className="button-group">
         <input type="file" onChange={handleFileChange} />
         <p> Or upload your own text </p>

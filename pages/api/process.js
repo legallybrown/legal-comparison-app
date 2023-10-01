@@ -49,55 +49,43 @@ export default async (req, res) => {
       }   
       
       // Your predefined legal positions string here
-      const predefinedLegalPositions = `License Grant:
+      const predefinedLegalPositions = `
+      Data Ownership and Control:Ensure clarity on data ownership, with the customer retaining ownership of their data.
 
-      The SaaS provider grants the customer a non-exclusive, non-transferable right to use the software service for its internal business purposes.
-      Service Availability:
-
-      The SaaS provider guarantees a 99.5% uptime, excluding scheduled maintenance. Downtime compensation mechanisms are defined.
-      Data Protection and Privacy:
-
-      The provider ensures that all customer data is stored and processed in compliance with applicable data protection laws, such as GDPR. The provider acts as a data processor on behalf of the customer.
-      Service Fees:
-
-      The customer agrees to pay a monthly/annual subscription fee. Late payments may attract an interest rate of 2% above the base rate.
+      Define how data can be used, accessed, and returned upon contract termination.
       Service Level Agreement (SLA):
 
-      The provider commits to respond to high-priority issues within 2 hours and resolves them within 24 hours.
-      Termination:
+      Negotiate a strong SLA with clear uptime commitments and compensation for downtime.
+      Data Security and Compliance:
 
-      Either party can terminate the contract with 30 days' notice. Early termination may result in penalties.
-      Intellectual Property:
+      The provider should comply with industry-standard security certifications and regulations relevant to the customer’s sector.
+      Data Privacy:
 
-      All intellectual property rights in the software service remain the property of the provider. The customer is granted a license to use but not to modify or distribute the software.
-      Confidentiality:
+      Establish stringent data privacy policies, ensuring compliance with laws like GDPR or HIPAA as applicable.
+      Pricing and Payment Terms:
 
-      Both parties commit to keeping all proprietary information they learn during the contract confidential.
-      Limitation of Liability:
+      Agree on clear pricing structures, payment schedules, and conditions for price increases.
+      Contract Duration and Renewal:
 
-      The provider's liability for any damages, whether in contract or tort, shall not exceed the fees paid by the customer in the previous 12 months.
-      Data Backup and Restoration:
+      Define contract length, renewal terms, and conditions for early termination.
+      Technical Support and Customer Service:
 
-      The provider ensures daily backups of customer data and commits to restoring data within 48 hours in case of any data loss.
-      Support and Maintenance:
+      Set expectations for the level of support, response times, and availability of customer service.
+      Integration and Compatibility:
 
-      The provider offers customer support from 9 AM to 6 PM on weekdays. Scheduled maintenance will be communicated 48 hours in advance.
-      Integration and APIs:
+      The SaaS solution should easily integrate with the customer’s existing systems and software.
+      Dispute Resolution:
 
-      The provider offers APIs for integration and ensures they remain functional. Any changes to APIs will be communicated 60 days in advance.
-      Non-Solicitation:
+      Agree on mechanisms for resolving disputes, including arbitration or litigation, and jurisdiction for legal matters.
+      Data Backup and Recovery:
 
-      During the contract and for 1 year after its termination, neither party shall solicit or hire employees of the other party without written consent.
-      Governing Law:
+      The provider should have robust data backup and recovery processes to prevent data loss and ensure business continuity.
 
-      The contract will be governed by the laws of California, USA, and disputes will be resolved in the courts of San Francisco.
-      Amendments:
 
-      Any changes to the contract must be in writing and signed by both parties.
       `; 
       
 const promptText = `
-  You're an expert, senior commercial lawyer. Given the following Document, suggest edits to align it with the Predefined Legal Positions I give to you. Return the suggested edits in a structured format like:
+  You're an expert, senior commercial lawyer. Given the following Document, suggest edits to align it with the Predefined Legal Positions I give to you. Return a summary of the changes and the suggested edits in a structured format like:
 
   [
     {"type": "add", "text": "suggested addition"},
@@ -112,7 +100,7 @@ const promptText = `
 `;
 const completion = await openai.chat.completions.create({
         messages: [{ role: 'user', content: promptText }],
-        model: 'gpt-3.5-turbo-16k-0613',
+        model: 'gpt-4',
       });
 
       console.log('suggestedEdits is', completion.choices[0].message.content);
